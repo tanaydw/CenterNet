@@ -54,6 +54,8 @@ def demo(opt):
       for stat in time_stats:
         time_str = time_str + '{} {:.3f}s |'.format(stat, ret[stat])
       print(time_str)
+      cv2.imwrite('./results' + '/{}_add_pred.png'.format(image_name), ret['add_pred'])
+      cv2.imwrite('./results' + '/{}_bird_pred.png'.format(image_name), ret['bird_pred'])
 
 if __name__ == '__main__':
   opt = opts().init()

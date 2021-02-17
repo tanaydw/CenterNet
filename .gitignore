@@ -1,4 +1,5 @@
 legacy/*
+*.vs
 .DS_Store
 debug/*
 *.DS_Store
