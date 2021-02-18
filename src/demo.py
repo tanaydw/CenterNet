@@ -6,6 +6,7 @@ import _init_paths
 
 import os
 import cv2
+import numpy as np
 
 from opts import opts
 from detectors.detector_factory import detector_factory
@@ -13,6 +14,37 @@ from detectors.detector_factory import detector_factory
 image_ext = ['jpg', 'jpeg', 'png', 'webp']
 video_ext = ['mp4', 'mov', 'avi', 'mkv']
 time_stats = ['tot', 'load', 'pre', 'net', 'dec', 'post', 'merge']
+
+
+def combine_images(left, right):
+  rows_rgb, cols_rgb, channels = left.shape
+  rows_gray, cols_gray, _ = right.shape
+  rows_comb = max(rows_rgb, rows_gray)
+  cols_comb = cols_rgb + cols_gray
+  comb = np.zeros(shape=(rows_comb, cols_comb, channels), dtype=np.uint8)
+  comb[:rows_rgb, :cols_rgb] = left
+  comb[:rows_gray, cols_rgb:] = right
+
+  return comb
+
+
+def undistort_image(img):
+    """
+    A custom function to undistort image
+    just for Negeley-Black Video.
+    """
+    h, w = img.shape[:2]
+    mtx = np.array([
+        [3389.14855, 0, 982.985434],
+        [0, 3784.14471, 556.363307],
+        [0, 0, 1]]
+    )
+    dist = np.array([-1.83418584,  12.2930625, -0.00434882103,  0.0226389517, -85.1805652])
+
+    # undistort
+    img = cv2.undistort(img, mtx, dist)
+    return img
+
 
 def demo(opt):
   os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpus_str
@@ -39,16 +71,18 @@ def demo(opt):
             return
         cnt += 1
         # cv2.imshow('input', img)
-        if cnt == 1:
-            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-            out = cv2.VideoWriter('./results/{}_output.avi'.format(out_name), 
-                    fourcc, 10, (img.shape[1], img.shape[0]))
+        img = undistort_image(img)
         ret = detector.run(img)
         time_str = ''
         for stat in time_stats:
           time_str = time_str + '{} {:.3f}s |'.format(stat, ret[stat])
         print('Frame ' + str(cnt) + ' |' + time_str)
-        out.write(ret['add_pred'])
+        img = combine_images(ret['add_pred'], ret['bird_pred'])
+        if cnt == 1:
+            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+            out = cv2.VideoWriter('./results/{}_output.avi'.format(out_name), 
+                    fourcc, 10, (img.shape[1], img.shape[0]))
+        out.write(img)
         if cv2.waitKey(1) == 27:
             return  # esc to quit
   else:
